@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -256,6 +257,12 @@ func (s *Stream) Silent(isSilent bool) *Stream {
 func (s *Stream) Compile(options ...CompilationOption) *exec.Cmd {
 	args := s.GetArgs()
 	cmd := exec.CommandContext(s.Context, s.FfmpegPath, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW 标志（双重保险）
+		// 或使用以下方式（根据Go版本选择）：
+		//CreationFlags: syscall.CREATE_NO_WINDOW,
+	}
 	if a, ok := s.Context.Value("Stdin").(io.Reader); ok {
 		cmd.Stdin = a
 	}
@@ -268,7 +275,7 @@ func (s *Stream) Compile(options ...CompilationOption) *exec.Cmd {
 	for _, option := range GlobalCommandOptions {
 		option(cmd)
 	}
-  if LogCompiledCommand {
+	if LogCompiledCommand {
 		log.Printf("compiled command: ffmpeg %s\n", strings.Join(args, " "))
 	}
 	return cmd
